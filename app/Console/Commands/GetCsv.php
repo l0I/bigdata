@@ -19,6 +19,12 @@ class GetCsv extends Command
      * @var array
      */
     public $usersActivityCounter = [];
+
+    public $usersRows = [];
+
+    public $averagesByUser = [];
+
+    public $usersBrutalSum = [];
     /**
      * The console command description.
      *
@@ -43,50 +49,120 @@ class GetCsv extends Command
      */
     public function handle()
     {
-        $this->info('I am ready!');
-        Storage::disk('local')->put('file.txt', 'Contents');
+
         try {
-        $file = Storage::disk('local')->get('tabular_data.csv');
+            $file = Storage::disk('local')->get('tabular_data.csv');
         } catch (FileException $e) {
             return false;
         }
-
         $Data = str_getcsv($file, "\n");
         $DataKey = $this->scvParcer($Data);
 
-        $this->info(sizeof($DataKey));
+        try {
+            $trainFile = Storage::disk('local')->get('train_target.csv');
+        } catch (FileException $e) {
+            return false;
+        }
+        $TrainData = str_getcsv($trainFile, "\n");
+        $WhoIdDaddy = [];
+        foreach ($TrainData as $toCheck) {
+            $asArr = explode(',', $toCheck);
 
-       foreach($DataKey as $index=>$item) {
+            $WhoIdDaddy[$asArr[0]] = $asArr[1];
+        }
 
-           if($index <= 3871) {
-               $this->activityCouner($item["ID"]);//all records with 3 row, 1294 - 1
-                $this->info('Have results for id: '.$item["ID"]);
+        foreach ($DataKey as $index => $item) {
+            if ($index <= 3871) {
+                $this->activityGrouper($item);//almost all records with 3 row, 1294 - 1
+                //$this->info('Have results for id: '.$item["ID"]);
             } else {
                 break;
             }
         }
-       dd($this->usersActivityCounter);
+
+        foreach ($this->usersRows as $usersRows) {
+            $arrayKeys = array_keys($usersRows[0]);
+            $sumForEveryValueForUnicUser = [];
+            $rowCounter = 0;
+            foreach ($usersRows as $row) {
+                $rowCounter += 1;
+                foreach ($arrayKeys as $key) {
+                    if ($key != "PERIOD" && $key != "ID") {
+                        // check if for current user sum for $key started early
+                        if (array_key_exists($key, $sumForEveryValueForUnicUser) && is_numeric($sumForEveryValueForUnicUser[$key])) {
+                            $previousValue = $sumForEveryValueForUnicUser[$key];
+                            if (is_numeric($row[$key])) {
+                                $sumForEveryValueForUnicUser[$key] = $row[$key] + $previousValue;
+                            } else {
+                                $sumForEveryValueForUnicUser[$key] = $previousValue;
+                            }
+
+                        } else {
+                            $sumForEveryValueForUnicUser[$key] = $row[$key];
+                        }
+                    }
+                }
+            }
+            // have sum all rows for unic uses at last - get average now
+            $arrayOfUsersAverages = [];
+            foreach ($arrayKeys as $key) {
+                if ($key != "PERIOD" && $key != "ID") {
+                    $arrayOfUsersAverages[$key] = $sumForEveryValueForUnicUser[$key] != 0 ? $sumForEveryValueForUnicUser[$key] / $rowCounter : 0;
+                }
+            }
+            $arrayOfUsersAverages["ID"] = $usersRows[0]["ID"];
+            $this->averagesByUser[$usersRows[0]["ID"]] = $arrayOfUsersAverages;
+        }
+
+        // brutal sum
+        $arrayKeys = array_keys($this->averagesByUser[1]);
+        foreach ($this->averagesByUser as $usersAverage) {
+
+            $brutalSum = 0;
+            foreach ($arrayKeys as $key) {
+                if ($key != "PERIOD" && $key != "ID" && is_numeric($usersAverage[$key])) {
+                    $brutalSum += $usersAverage[$key];
+                }
+
+            }
+            $this->usersBrutalSum[$usersAverage["ID"]] = $brutalSum;
+        }
+
+        // brutal to compare
+        foreach ($this->usersBrutalSum as $key => $sumToCompare) {
+            $this->info($WhoIdDaddy[$key] . ' - ' . $sumToCompare);
+        }
+
+        \
         return 1;
     }
 
-    private function scvParcer($Data) {
+    private function scvParcer($Data)
+    {
         $header = [];
         $DataKey = [];
-        foreach($Data as $index=>$row) {
-            if(!$index) {
+        foreach ($Data as $index => $row) {
+            if (!$index) {
                 $header = explode(',', $row);
             } else {
-                $DataKey[] = array_combine($header,explode(',',$row));
+                $DataKey[] = array_combine($header, explode(',', $row));
             }
         }
         return $DataKey;
     }
 
-    private function activityCouner($id) {
-        if(array_key_exists($id,$this->usersActivityCounter)) {
-            $this->usersActivityCounter[$id] = $this->usersActivityCounter[$id]+=1;
+    private function activityGrouper($item)
+    {
+        if (array_key_exists($item["ID"], $this->usersActivityCounter)) {
+            $rowArray = $this->usersRows[$item["ID"]];
+            $this->usersActivityCounter[$item["ID"]] = $this->usersActivityCounter[$item["ID"]] += 1;
         } else {
-            $this->usersActivityCounter[$id] = 1;
+            $rowArray = [];
+            $this->usersActivityCounter[$item["ID"]] = 1;
         }
+        $rowArray[] = $item;
+        $this->usersRows[$item["ID"]] = $rowArray;
     }
+
+
 }
