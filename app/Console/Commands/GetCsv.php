@@ -49,7 +49,6 @@ class GetCsv extends Command
      */
     public function handle()
     {
-
         try {
             $file = Storage::disk('local')->get('tabular_data.csv');
         } catch (FileException $e) {
@@ -72,12 +71,12 @@ class GetCsv extends Command
         }
 
         foreach ($DataKey as $index => $item) {
-            if ($index <= 3871) {
+            //if ($index <= 3871) {
                 $this->activityGrouper($item);//almost all records with 3 row, 1294 - 1
                 //$this->info('Have results for id: '.$item["ID"]);
-            } else {
+            /*} else {
                 break;
-            }
+            }*/
         }
 
         foreach ($this->usersRows as $usersRows) {
@@ -133,16 +132,15 @@ class GetCsv extends Command
             $this->info($WhoIdDaddy[$key] . ' - ' . $sumToCompare);
         }*/
 
-
-//"V_4"
        /* foreach ($this->averagesByUser as $key => $usersAverage) {
             $this->info($WhoIdDaddy[$key] . ' - ' . $usersAverage["V_4"]);
-        }*/
-// V_5
+        }
         // V_10 just interesting
         foreach ($this->averagesByUser as $key => $usersAverage) {
             $this->info($WhoIdDaddy[$key] . ' - ' . $usersAverage["V_29"]);
         }
+       */
+
         $averageDaddy = [];
         $averageOther = [];
         $averageDaddyCounter = 0;
@@ -156,23 +154,28 @@ class GetCsv extends Command
 
         foreach ($this->averagesByUser as $index => $usersAverage) {
             foreach ($arrayKeys as $key) {
-                if ($WhoIdDaddy[$index]) {
-                    $averageDaddyCounter += 1;
-                    $averageDaddy[$key] += $usersAverage[$key];
-                } else {
-                    $averageOtherCounter += 1;
-                    $averageOther[$key] += $usersAverage[$key];
+                if($index <= 3871) {
+                    if ($WhoIdDaddy[$index]) {
+                        $averageDaddyCounter += 1;
+                        $averageDaddy[$key] += $usersAverage[$key];
+                    } else {
+                        $averageOtherCounter += 1;
+                        $averageOther[$key] += $usersAverage[$key];
+                    }
                 }
+
             }
 
         }
+
+        $terminator = [];
         foreach ($arrayKeys as $key) {
-            $this->info($key.": ".$averageDaddy[$key] / $averageDaddyCounter . ' - ' . $averageOther[$key] / $averageOtherCounter);
+            $terminator[$key] = (($averageDaddy[$key] / $averageDaddyCounter) + ($averageOther[$key] / $averageOtherCounter))/2;
+            $this->info($key.": ".$averageDaddy[$key] / $averageDaddyCounter . ' - ' . $averageOther[$key] / $averageOtherCounter. " border:".$terminator[$key]);
         }
 
 
         /*
-         *
 V_1: 0.51261916922029 - 0.4447486593009
                                         !V_2: 0.28903855975485 - 0.17175082380306
                                         !V_3: 0.043188202247191 - 0.025271370420624
@@ -216,11 +219,58 @@ V_39: 0.24977655771195 - 0.13600827033663
 V_41: 1.7133708929179 - 1.3451501421464
                                         !!!V_42: 0.030856315968676 - 0.013709859791949
                                         !V_43: 6.1118659560138 - 2.3578098803668
+*/
 
-         * */
+        try {
+            $testFile = Storage::disk('local')->get('test_target.csv');
+        } catch (FileException $e) {
+            return false;
+        }
+        $testData = str_getcsv($testFile, "\n");
+        $DataPrevResults = $this->scvParcer($testData);
+        $DataResults = "";
+        foreach($DataPrevResults as $row) {
+            $score = 0;
+            if($this->averagesByUser[$row["ID"]]["V_2"] > $terminator["V_2"]) {
+                $score+=0.07;
+            }
+            if($this->averagesByUser[$row["ID"]]["V_3"] > $terminator["V_3"]) {
+                $score+=0.07;
+            }
+            if($this->averagesByUser[$row["ID"]]["V_8"] > $terminator["V_8"]) {
+                $score+=0.07;
+            }
+            if($this->averagesByUser[$row["ID"]]["V_16"] < $terminator["V_16"]) {
+                $score+=0.14;
+            }
+            if($this->averagesByUser[$row["ID"]]["V_22"] > $terminator["V_22"]) {
+                $score+=0.07;
+            }
+            if($this->averagesByUser[$row["ID"]]["V_28"] > $terminator["V_28"]) {
+                $score+=0.07;
+            }
+            if($this->averagesByUser[$row["ID"]]["V_29"] > $terminator["V_29"]) {
+                $score+=0.07;
+            }
+            if($this->averagesByUser[$row["ID"]]["V_31"] < $terminator["V_31"]) {
+                $score+=0.07;
+            }
+            if($this->averagesByUser[$row["ID"]]["V_32"] > $terminator["V_32"]) {
+                $score+=0.07;
+            }
+            if($this->averagesByUser[$row["ID"]]["V_40"] > $terminator["V_40"]) {
+                $score+=0.07;
+            }
+            if($this->averagesByUser[$row["ID"]]["V_42"] > $terminator["V_42"]) {
+                $score+=0.14;
+            }
+            if($this->averagesByUser[$row["ID"]]["V_29"] > $terminator["V_29"]) {
+                $score+=0.07;
+            }
+            $DataResults.=$row["ID"].", $score\r\n";
+        }
 
-
-
+        Storage::disk('local')->put('ZhdanovychOleksij_test.txt', $DataResults);
         return 1;
     }
 
