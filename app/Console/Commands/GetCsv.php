@@ -228,7 +228,7 @@ V_41: 1.7133708929179 - 1.3451501421464
         }
         $testData = str_getcsv($testFile, "\n");
         $DataPrevResults = $this->scvParcer($testData);
-        $DataResults = "";
+        $DataResults = "ID,SCORE\r\n";
         foreach($DataPrevResults as $row) {
             $score = 0;
             if($this->averagesByUser[$row["ID"]]["V_2"] > $terminator["V_2"]) {
