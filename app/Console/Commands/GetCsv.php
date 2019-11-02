@@ -2,10 +2,9 @@
 
 namespace App\Console\Commands;
 
-use App\BigData;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
-use phpDocumentor\Reflection\File;
+use Symfony\Component\HttpFoundation\File\Exception\FileException;
 
 class GetCsv extends Command
 {
@@ -16,6 +15,10 @@ class GetCsv extends Command
      */
     protected $signature = 'get:csv';
 
+    /**
+     * @var array
+     */
+    public $usersActivityCounter = [];
     /**
      * The console command description.
      *
@@ -42,11 +45,28 @@ class GetCsv extends Command
     {
         $this->info('I am ready!');
         Storage::disk('local')->put('file.txt', 'Contents');
-        $file = Storage::disk('local')->get('data.csv');
+        try {
+        $file = Storage::disk('local')->get('tabular_data.csv');
+        } catch (FileException $e) {
+            return false;
+        }
+
         $Data = str_getcsv($file, "\n");
         $DataKey = $this->scvParcer($Data);
-        dd($DataKey);
 
+        $this->info(sizeof($DataKey));
+
+       foreach($DataKey as $index=>$item) {
+
+           if($index <= 3871) {
+               $this->activityCouner($item["ID"]);//all records with 3 row, 1294 - 1
+                $this->info('Have results for id: '.$item["ID"]);
+            } else {
+                break;
+            }
+        }
+       dd($this->usersActivityCounter);
+        return 1;
     }
 
     private function scvParcer($Data) {
@@ -62,4 +82,11 @@ class GetCsv extends Command
         return $DataKey;
     }
 
+    private function activityCouner($id) {
+        if(array_key_exists($id,$this->usersActivityCounter)) {
+            $this->usersActivityCounter[$id] = $this->usersActivityCounter[$id]+=1;
+        } else {
+            $this->usersActivityCounter[$id] = 1;
+        }
+    }
 }
